@@ -19,6 +19,13 @@ make
 ./TerrainEngine
 ```
 
+### When stuck
+
+If you can't find answers or solutions within this project, check sibling directories for reference implementations:
+- `Assignment1/` - Assignment 1 implementation
+- `Demo-HUD/` - HUD demo
+- `Tutorial-1/` through `Tutorial-5/` - Tutorial examples (Tutorial numbers 1-5)
+
 ### Camera controls
 - **WASD** - Move camera forward/left/backward/right
 - **Mouse** - Look around (the camera tracks cursor position)
