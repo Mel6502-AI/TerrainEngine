@@ -24,6 +24,8 @@ void RenderText(Shader &shader, std::string text, GLfloat x, GLfloat y, GLfloat 
 GLuint loadTexture(const char * path, GLboolean alpha = false);
 
 GLuint WIDTH = 800, HEIGHT = 600;
+#define WATER_SPEED_X 0.03f
+#define WATER_SPEED_Y 0.015f
 
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 bool keys[1024];
@@ -202,9 +204,16 @@ int main()
 
     while (!glfwWindowShouldClose(window))
     {
-        GLfloat currentFrame = glfwGetTime();
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
+        static struct timespec lastTime = {0, 0};
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+
+        float dt = 0.0f;
+        if (lastTime.tv_sec != 0 || lastTime.tv_nsec != 0) {
+            dt = (now.tv_sec  - lastTime.tv_sec)
+               + (now.tv_nsec - lastTime.tv_nsec) / 1e9f;
+        }
+        lastTime = now;
 
         glfwPollEvents();
         Do_Movement();
@@ -280,7 +289,7 @@ int main()
         glUniform1i(glGetUniformLocation(shader.Program, "texRotY"), 0);
         glUniform1i(glGetUniformLocation(shader.Program, "texRotZ"), 0);
         static float waveShift = 0.0f;
-        waveShift += 0.0005f;
+        waveShift += WATER_SPEED_X * dt;
         glUniform1f(glGetUniformLocation(shader.Program, "uWaveShift"), waveShift);
         glDrawArrays(GL_TRIANGLES, 24, 6);
 
