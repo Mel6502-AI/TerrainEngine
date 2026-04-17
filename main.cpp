@@ -241,6 +241,8 @@ int main()
         glUniform1i(glGetUniformLocation(shader.Program, "texture1"), 0);
         glUniform1i(glGetUniformLocation(shader.Program, "faceType"), 1);
         glUniform1i(glGetUniformLocation(shader.Program, "texRotX"), 0);
+        glUniform1i(glGetUniformLocation(shader.Program, "texRotY"), 0);
+        glUniform1i(glGetUniformLocation(shader.Program, "texRotZ"), 0);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         // Front face - green - SkyBox2 (180Z flip)
@@ -248,8 +250,9 @@ int main()
         glBindTexture(GL_TEXTURE_2D, skybox2Texture);
         glUniform1i(glGetUniformLocation(shader.Program, "texture4"), 3);
         glUniform1i(glGetUniformLocation(shader.Program, "faceType"), 4);
-        glUniform1i(glGetUniformLocation(shader.Program, "texRotZ"), 180);
         glUniform1i(glGetUniformLocation(shader.Program, "texRotX"), 180);
+        glUniform1i(glGetUniformLocation(shader.Program, "texRotY"), 0);
+        glUniform1i(glGetUniformLocation(shader.Program, "texRotZ"), 180);
         glDrawArrays(GL_TRIANGLES, 6, 6);
 
         // Left face - SkyBox3 (90Y + 180X)
@@ -257,8 +260,9 @@ int main()
         glBindTexture(GL_TEXTURE_2D, skybox3Texture);
         glUniform1i(glGetUniformLocation(shader.Program, "texture2"), 1);
         glUniform1i(glGetUniformLocation(shader.Program, "faceType"), 2);
-        glUniform1i(glGetUniformLocation(shader.Program, "texRotY"), 90);
         glUniform1i(glGetUniformLocation(shader.Program, "texRotX"), 180);
+        glUniform1i(glGetUniformLocation(shader.Program, "texRotY"), 90);
+        glUniform1i(glGetUniformLocation(shader.Program, "texRotZ"), 0);
         glDrawArrays(GL_TRIANGLES, 12, 6);
 
         // Right face - yellow - SkyBox1 (90X flip)
@@ -267,6 +271,8 @@ int main()
         glUniform1i(glGetUniformLocation(shader.Program, "texture1"), 0);
         glUniform1i(glGetUniformLocation(shader.Program, "faceType"), 1);
         glUniform1i(glGetUniformLocation(shader.Program, "texRotX"), 90);
+        glUniform1i(glGetUniformLocation(shader.Program, "texRotY"), 0);
+        glUniform1i(glGetUniformLocation(shader.Program, "texRotZ"), 0);
         glDrawArrays(GL_TRIANGLES, 18, 6);
 
         // Top face - SkyBox4 (180Z flip)
@@ -274,10 +280,9 @@ int main()
         glBindTexture(GL_TEXTURE_2D, skybox4Texture);
         glUniform1i(glGetUniformLocation(shader.Program, "texture3"), 2);
         glUniform1i(glGetUniformLocation(shader.Program, "faceType"), 3);
-        glUniform1i(glGetUniformLocation(shader.Program, "texRotX"), 0);
-        glUniform1i(glGetUniformLocation(shader.Program, "texRotZ"), 180);
-        glUniform1i(glGetUniformLocation(shader.Program, "texRotY"), 180);
         glUniform1i(glGetUniformLocation(shader.Program, "texRotX"), 180);
+        glUniform1i(glGetUniformLocation(shader.Program, "texRotY"), 180);
+        glUniform1i(glGetUniformLocation(shader.Program, "texRotZ"), 180);
         glDrawArrays(GL_TRIANGLES, 30, 6);
 
         // Bottom face - SkyBox5 (water)
