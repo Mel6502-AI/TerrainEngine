@@ -2,6 +2,7 @@
 #include <iostream>
 #include <map>
 #include <sstream>
+#include <time.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include "shader.h"
@@ -278,6 +279,9 @@ int main()
         glUniform1i(glGetUniformLocation(shader.Program, "texRotX"), 0);
         glUniform1i(glGetUniformLocation(shader.Program, "texRotY"), 0);
         glUniform1i(glGetUniformLocation(shader.Program, "texRotZ"), 0);
+        static float waveShift = 0.0f;
+        waveShift += 0.0005f;
+        glUniform1f(glGetUniformLocation(shader.Program, "uWaveShift"), waveShift);
         glDrawArrays(GL_TRIANGLES, 24, 6);
 
         glBindVertexArray(0);

@@ -11,6 +11,7 @@ uniform sampler2D texture3;
 uniform sampler2D texture4;
 uniform sampler2D texture5;
 uniform int faceType; // 0 = colored, 1 = SkyBox1, 2 = SkyBox3, 3 = SkyBox4, 4 = SkyBox2, 5 = water
+uniform float uWaveShift;
 uniform int texRotY;  // Y rotation in degrees (0, 90, 180, 270) - for faces 2 and 3
 uniform int texRotX;  // X rotation in degrees (0, 180) - for face 2
 uniform int texRotZ;  // Z rotation in degrees (0, 90, 180, 270) - for face 3
@@ -71,7 +72,7 @@ void main()
         }
         color = texture(texture4, adjustedTex);
     } else if (faceType == 5) {
-        color = texture(texture5, TexCoords);
+        color = texture(texture5, vec2(TexCoords.x + uWaveShift, TexCoords.y + 0.5 * uWaveShift));
     } else {
         color = vec4(Color, 1.0f);
     }
