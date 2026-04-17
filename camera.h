@@ -68,18 +68,23 @@ public:
     void ProcessKeyboard(Camera_Movement direction, GLfloat deltaTime)
     {
         GLfloat velocity = this->MovementSpeed * deltaTime;
-        if (direction == FORWARD)
-            this->Position += this->Front * velocity;
-        if (direction == BACKWARD)
-            this->Position -= this->Front * velocity;
+        if (direction == FORWARD) {
+            // Flatten Front to XZ plane (no Y component) so W/S don't affect Z
+            glm::vec3 flatFront = glm::normalize(glm::vec3(this->Front.x, 0.0f, this->Front.z));
+            this->Position += flatFront * velocity;
+        }
+        if (direction == BACKWARD) {
+            glm::vec3 flatFront = glm::normalize(glm::vec3(this->Front.x, 0.0f, this->Front.z));
+            this->Position -= flatFront * velocity;
+        }
         if (direction == LEFT)
             this->Position -= this->Right * velocity;
         if (direction == RIGHT)
             this->Position += this->Right * velocity;
         if (direction == UP)
-            this->Position += this->Up * velocity;
+            this->Position += this->WorldUp * velocity;
         if (direction == DOWN)
-            this->Position -= this->Up * velocity;
+            this->Position -= this->WorldUp * velocity;
     }
 
     // Processes input received from a mouse input system.
