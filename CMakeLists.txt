@@ -1,46 +1,21 @@
-cmake_minimum_required(VERSION 3.16)
-project(TerrainEngine CXX)
+cmake_minimum_required(VERSION 3.5.0)
+project(Wall)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 14)
+set(GLAD_H /Users/melvyn/computer_graphics/glad/include)
+set(GLFW_H /Users/melvyn/computer_graphics/glfw-3.4.bin.MACOS/include)
+set(GLM_H /opt/homebrew/include/glm)
+set(STBI_H /Users/melvyn/computer_graphics)
+include_directories(${GLAD_H} ${GLFW_H} ${GLM_H} ${STBI_H})
 
-find_package(OpenGL REQUIRED)
+set(GLFW_LINK /Users/melvyn/computer_graphics/glfw-3.4.bin.MACOS/lib-universal/libglfw.3.dylib)
+link_libraries(${GLFW_LINK})
 
-# Local GLFW (pre-built)
-set(GLFW_INCLUDE_DIR "/Users/melvyn/Downloads/glfw-3.4.bin.MACOS/include")
-set(GLFW_LIBRARY "/Users/melvyn/Downloads/glfw-3.4.bin.MACOS/lib-universal/libglfw.3.dylib")
-set(GLFW_RPATH "@executable_path/../Frameworks")
+set(SOURCE_MAIN main.cpp)
+set(SOURCE_GLAD /Users/melvyn/computer_graphics/glad/src/glad.c)
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR})
+add_executable(wall ${SOURCE_MAIN} ${SOURCE_GLAD})
 
-# System GLM
-set(GLM_INCLUDE_DIR "/opt/homebrew/include")
-
-include_directories(
-    ${GLFW_INCLUDE_DIR}
-    ${GLM_INCLUDE_DIR}
-    ${CMAKE_SOURCE_DIR}/src
-)
-
-add_library(glfw STATIC IMPORTED)
-set_target_properties(glfw PROPERTIES
-    IMPORTED_LOCATION ${GLFW_LIBRARY}
-    INSTALL_RPATH ${GLFW_RPATH}
-)
-
-add_executable(TerrainEngine
-    src/main.cpp
-    src/TerrainRenderer.cpp
-    src/SkyBox.cpp
-    src/Camera.cpp
-    src/Shader.cpp
-    src/gl3w.cpp
-    src/stb_image_impl.cpp
-)
-
-target_link_libraries(TerrainEngine
-    glfw
-    OpenGL::GL
-    ${CMAKE_DL_LIBS}
-    "-framework Cocoa"
-    "-framework IOKit"
-    "-framework CoreVideo"
-)
+if (APPLE)
+    target_link_libraries(wall "-framework OpenGL")
+endif()
