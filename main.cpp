@@ -21,7 +21,6 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void Do_Movement();
 void RenderText(Shader &shader, std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color);
 GLuint loadTexture(const char * path, GLboolean alpha = false);
-GLuint loadTextureWater(const char * path, GLboolean alpha = false);
 
 GLuint WIDTH = 800, HEIGHT = 600;
 
@@ -127,7 +126,11 @@ int main()
     GLuint skybox2Texture = loadTexture("/Users/melvyn/computer_graphics/TerrainEngine/data/SkyBox/SkyBox2.bmp", false);
     GLuint skybox3Texture = loadTexture("/Users/melvyn/computer_graphics/TerrainEngine/data/SkyBox/SkyBox3.bmp", false);
     GLuint skybox4Texture = loadTexture("/Users/melvyn/computer_graphics/TerrainEngine/data/SkyBox/SkyBox4.bmp", false);
-    GLuint waterTexture = loadTextureWater("/Users/melvyn/computer_graphics/TerrainEngine/data/SkyBox/SkyBox5.bmp", false);
+    GLuint skybox5Texture = loadTexture("/Users/melvyn/computer_graphics/Sandbox_terrainEngine/data/SkyBox/SkyBox5.bmp", false);
+    glBindTexture(GL_TEXTURE_2D, skybox5Texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glBindTexture(GL_TEXTURE_2D, 0);
 
     // Cube vertices
     GLfloat cubeVertices[] = {
@@ -164,12 +167,12 @@ int main()
          0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  1.0f, 1.0f, 0.0f,
 
         // Bottom face (magenta) - indices 24-29 - water texture with tiling
-        -0.5f, -0.5f, -0.5f,  0.0f,  4.0f,  1.0f, 0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  4.0f,  4.0f,  1.0f, 0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  4.0f,  0.0f,  1.0f, 0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  4.0f,  0.0f,  1.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f,  8.0f,  1.0f, 0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  8.0f,  8.0f,  1.0f, 0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,  8.0f,  0.0f,  1.0f, 0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,  8.0f,  0.0f,  1.0f, 0.0f, 1.0f,
         -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f,  4.0f,  1.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f,  8.0f,  1.0f, 0.0f, 1.0f,
 
         // Top face (SkyBox4) - indices 30-35
         -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f,
@@ -256,13 +259,6 @@ int main()
         glUniform1i(glGetUniformLocation(shader.Program, "texRotX"), 90);
         glDrawArrays(GL_TRIANGLES, 18, 6);
 
-        // Bottom face - water texture with tiling
-        glActiveTexture(GL_TEXTURE4);
-        glBindTexture(GL_TEXTURE_2D, waterTexture);
-        glUniform1i(glGetUniformLocation(shader.Program, "texture4"), 4);
-        glUniform1i(glGetUniformLocation(shader.Program, "faceType"), 5);
-        glDrawArrays(GL_TRIANGLES, 24, 6);
-
         // Top face - SkyBox4 (180Z flip)
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, skybox4Texture);
@@ -273,6 +269,16 @@ int main()
         glUniform1i(glGetUniformLocation(shader.Program, "texRotY"), 180);
         glUniform1i(glGetUniformLocation(shader.Program, "texRotX"), 180);
         glDrawArrays(GL_TRIANGLES, 30, 6);
+
+        // Bottom face - SkyBox5 (water)
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_2D, skybox5Texture);
+        glUniform1i(glGetUniformLocation(shader.Program, "texture5"), 4);
+        glUniform1i(glGetUniformLocation(shader.Program, "faceType"), 5);
+        glUniform1i(glGetUniformLocation(shader.Program, "texRotX"), 0);
+        glUniform1i(glGetUniformLocation(shader.Program, "texRotY"), 0);
+        glUniform1i(glGetUniformLocation(shader.Program, "texRotZ"), 0);
+        glDrawArrays(GL_TRIANGLES, 24, 6);
 
         glBindVertexArray(0);
 
@@ -402,26 +408,6 @@ GLuint loadTexture(const char * path, GLboolean alpha)
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, alpha ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    stbi_image_free(image);
-
-    return textureID;
-}
-
-GLuint loadTextureWater(const char * path, GLboolean alpha)
-{
-    GLuint textureID;
-    glGenTextures(1, &textureID);
-    int width, height, nrComponents;
-    unsigned char* image = stbi_load(path, &width, &height, &nrComponents, 0);
-    glBindTexture(GL_TEXTURE_2D, textureID);
-    glTexImage2D(GL_TEXTURE_2D, 0, alpha ? GL_RGBA : GL_RGB, width, height, 0, alpha ? GL_RGBA : GL_RGB, GL_UNSIGNED_BYTE, image);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, alpha ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glBindTexture(GL_TEXTURE_2D, 0);
