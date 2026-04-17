@@ -23,3 +23,7 @@ build/
 
 # Claude Code / OMC state
 .claude/
+.omc/
+
+# Build binary
+wall
