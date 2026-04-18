@@ -30,7 +30,16 @@ set(SOURCE_MAIN main.cpp)
 set(SOURCE_GLAD /Users/melvyn/computer_graphics/glad/src/glad.c)
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR})
 add_executable(wall ${SOURCE_MAIN} ${SOURCE_GLAD})
+set_target_properties(wall PROPERTIES OUTPUT_NAME terrainEngine)
 
 if(APPLE)
     target_link_libraries(wall "-framework OpenGL" ${FREETYPE_LIBRARY})
+endif()
+
+# Terrain Sandbox - standalone terrain prototype executable
+set(SOURCE_SANDBOX sandbox/main.cpp)
+add_executable(TerrainSandbox ${SOURCE_SANDBOX} ${SOURCE_GLAD})
+target_include_directories(TerrainSandbox PRIVATE ${CMAKE_SOURCE_DIR} ${STBI_H})
+if(APPLE)
+    target_link_libraries(TerrainSandbox "-framework OpenGL")
 endif()

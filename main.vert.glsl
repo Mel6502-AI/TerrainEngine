@@ -6,6 +6,7 @@ layout (location = 2) in vec3 vertexColor;
 
 out vec3 Color;
 out vec2 TexCoords;
+out vec3 WorldPos;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -13,6 +14,7 @@ uniform mat4 projection;
 
 void main()
 {
+    WorldPos = (model * vec4(position, 1.0f)).xyz;
     gl_Position = projection * view * model * vec4(position, 1.0f);
     Color = vertexColor;
     TexCoords = vec2(texCoord.x, 1.0f - texCoord.y);

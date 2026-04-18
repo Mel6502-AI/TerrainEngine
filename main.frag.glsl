@@ -2,6 +2,7 @@
 
 in vec3 Color;
 in vec2 TexCoords;
+in vec3 WorldPos;
 
 out vec4 color;
 
@@ -15,6 +16,7 @@ uniform float uWaveShift;
 uniform int texRotY;  // Y rotation in degrees (0, 90, 180, 270) - for faces 2 and 3
 uniform int texRotX;  // X rotation in degrees (0, 180) - for face 2
 uniform int texRotZ;  // Z rotation in degrees (0, 90, 180, 270) - for face 3
+uniform vec3 uCameraPos;
 
 void main()
 {
@@ -72,13 +74,24 @@ void main()
         }
         color = texture(texture4, adjustedTex);
     } else if (faceType == 5) {
+        // Alpha fade: increases water transparency near camera, fully opaque at distance
+        const float FADE_START = 60.0f;
+        const float FADE_END = 150.0f;
+        const float nearAlpha = 0.55f;
+
         // Water: sample with scrolling UVs, output with alpha for blending
         vec2 uv = vec2(TexCoords.x + uWaveShift, TexCoords.y + 0.5 * uWaveShift);
         vec4 waterCol = texture(texture5, uv);
         // Tint toward a sea-blue and let reflection show through
         vec3 seaTint = vec3(0.25, 0.55, 0.75);
         waterCol.rgb = mix(waterCol.rgb, seaTint, 0.3);
-        color = vec4(waterCol.rgb, 0.9);
+
+        // Ramp alpha from nearAlpha (transparent near camera) to 1.0 (opaque at distance)
+        float dist = length(WorldPos - uCameraPos);
+        float fade = smoothstep(FADE_START, FADE_END, dist);
+        waterCol.a = mix(nearAlpha, 1.0f, fade);
+
+        color = vec4(waterCol.rgb, waterCol.a);
     } else {
         color = vec4(Color, 1.0f);
     }

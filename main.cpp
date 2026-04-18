@@ -35,6 +35,10 @@ GLuint WIDTH = 800, HEIGHT = 600;
 #define SKYBOX_Y_POS 30.0f
 #define SKYBOX_Y_NEG -30.0f
 #define SKYBOX_Z 70.0f
+#define XZ_SCALE      0.2f
+#define Y_SCALE       20.0f
+#define Y_OFFSET     -27.0f
+#define DETAIL_TILING 32.0f
 
 Camera camera(glm::vec3(0.0f, -0.5f * SCALE * SKYBOX_Y_POS, 0.0f));
 bool keys[1024];
@@ -52,6 +56,9 @@ struct Character {
 std::map<GLchar, Character> Characters;
 GLuint textVAO, textVBO;
 GLuint waterVAO, waterVBO;
+GLuint terrainVAO, terrainVBO, terrainEBO;
+GLuint terrainColorTexID, terrainDetailTexID;
+GLsizei terrainIndexCount;
 
 void drawSkyboxFaces(const Shader& shader,
                      GLuint skybox0Tex, GLuint skybox1Tex,
@@ -147,6 +154,7 @@ int main()
     std::string exePath = "/Users/melvyn/computer_graphics/Sandbox_terrainEngine/";
     Shader shader((exePath + "main.vert.glsl").c_str(), (exePath + "main.frag.glsl").c_str());
     Shader textShader((exePath + "shaders/text.vert.glsl").c_str(), (exePath + "shaders/text.frag.glsl").c_str());
+    Shader terrainShader((exePath + "terrain.vert.glsl").c_str(), (exePath + "terrain.frag.glsl").c_str());
 
     // Text projection (orthographic)
     glm::mat4 textProjection = glm::ortho(0.0f, static_cast<GLfloat>(WIDTH), 0.0f, static_cast<GLfloat>(HEIGHT));
@@ -199,6 +207,102 @@ int main()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glBindTexture(GL_TEXTURE_2D, 0);
+
+    // Load heightmap
+    std::string heightmapPath = exePath + "data/Terrain/heightmap.bmp";
+    std::cout << "Loading heightmap: " << heightmapPath << std::endl;
+    int hmW, hmH, hmChannels;
+    unsigned char* hmImage = stbi_load(heightmapPath.c_str(), &hmW, &hmH, &hmChannels, 1);
+    if (!hmImage) {
+        std::cout << "Failed to load heightmap: " << stbi_failure_reason() << std::endl;
+        return -1;
+    }
+    std::cout << "Heightmap loaded: " << hmW << " x " << hmH << std::endl;
+
+    // Build terrain mesh
+    std::vector<float> terrainVerts;
+    std::vector<GLuint> terrainIndices;
+
+    for (int j = 0; j < hmH; ++j) {
+        for (int i = 0; i < hmW; ++i) {
+            float x = (i - hmW / 2.0f) * XZ_SCALE;
+            float y = (hmImage[j * hmW + i] / 255.0f) * Y_SCALE + Y_OFFSET;
+            float z = (j - hmH / 2.0f) * XZ_SCALE;
+            float u = i / (hmW - 1.0f);
+            float v = j / (hmH - 1.0f);
+            terrainVerts.insert(terrainVerts.end(), {x, y, z, u, v});
+        }
+    }
+    for (int j = 0; j < hmH - 1; ++j) {
+        for (int i = 0; i < hmW - 1; ++i) {
+            GLuint i00 = j * hmW + i;
+            GLuint i10 = j * hmW + (i + 1);
+            GLuint i01 = (j + 1) * hmW + i;
+            GLuint i11 = (j + 1) * hmW + (i + 1);
+            terrainIndices.insert(terrainIndices.end(), {
+                i00, i10, i11,
+                i00, i11, i01
+            });
+        }
+    }
+    stbi_image_free(hmImage);
+
+    terrainIndexCount = terrainIndices.size();
+    std::cout << "Terrain: " << terrainVerts.size() / 5 << " vertices, " << terrainIndexCount / 3 << " triangles" << std::endl;
+
+    glGenVertexArrays(1, &terrainVAO);
+    glGenBuffers(1, &terrainVBO);
+    glGenBuffers(1, &terrainEBO);
+    glBindVertexArray(terrainVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, terrainVBO);
+    glBufferData(GL_ARRAY_BUFFER, terrainVerts.size() * sizeof(float), terrainVerts.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, terrainEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, terrainIndices.size() * sizeof(GLuint), terrainIndices.data(), GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glBindVertexArray(0);
+
+    // Load color texture
+    std::string colorTexPath = exePath + "data/terrain-texture3.bmp";
+    std::cout << "Loading color texture: " << colorTexPath << std::endl;
+    int ctW, ctH, ctChannels;
+    unsigned char* ctImage = stbi_load(colorTexPath.c_str(), &ctW, &ctH, &ctChannels, 3);
+    if (!ctImage) {
+        std::cout << "Failed to load color texture: " << stbi_failure_reason() << std::endl;
+        return -1;
+    }
+    std::cout << "Color texture loaded: " << ctW << " x " << ctH << std::endl;
+    glGenTextures(1, &terrainColorTexID);
+    glBindTexture(GL_TEXTURE_2D, terrainColorTexID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, ctW, ctH, 0, GL_RGB, GL_UNSIGNED_BYTE, ctImage);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    stbi_image_free(ctImage);
+
+    // Load detail texture
+    const char* detailTexPath = (exePath + "data/detail.bmp").c_str();
+    std::cout << "Loading detail texture: " << detailTexPath << std::endl;
+    int dtW, dtH, dtChannels;
+    unsigned char* dtImage = stbi_load(detailTexPath, &dtW, &dtH, &dtChannels, 3);
+    if (!dtImage) {
+        std::cout << "Failed to load detail texture: " << stbi_failure_reason() << std::endl;
+        return -1;
+    }
+    std::cout << "Detail texture loaded: " << dtW << " x " << dtH << std::endl;
+    glGenTextures(1, &terrainDetailTexID);
+    glBindTexture(GL_TEXTURE_2D, terrainDetailTexID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, dtW, dtH, 0, GL_RGB, GL_UNSIGNED_BYTE, dtImage);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    stbi_image_free(dtImage);
 
     // Cube vertices
     GLfloat cubeVertices[] = {
@@ -318,6 +422,7 @@ int main()
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniform3fv(glGetUniformLocation(shader.Program, "uCameraPos"), 1, glm::value_ptr(camera.Position));
 
         // === 1. REFLECTION PASS (flipped skybox drawn below water, depth-tested against scene) ===
         glDepthMask(GL_FALSE);              // don't write depth
@@ -351,6 +456,34 @@ int main()
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
         drawSkyboxFaces(shader, skybox0Texture, skybox1Texture,
                         skybox2Texture, skybox3Texture, skybox4Texture);
+
+        // === TERRAIN PASS ===
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
+
+        terrainShader.Use();
+
+        glm::mat4 terrainModel(1.0f);
+        glUniformMatrix4fv(glGetUniformLocation(terrainShader.Program, "model"), 1, GL_FALSE, glm::value_ptr(terrainModel));
+        glUniformMatrix4fv(glGetUniformLocation(terrainShader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(terrainShader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniform1f(glGetUniformLocation(terrainShader.Program, "uDetailTiling"), DETAIL_TILING);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, terrainColorTexID);
+        glUniform1i(glGetUniformLocation(terrainShader.Program, "uColorTex"), 0);
+
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, terrainDetailTexID);
+        glUniform1i(glGetUniformLocation(terrainShader.Program, "uDetailTex"), 1);
+
+        glBindVertexArray(terrainVAO);
+        glDrawElements(GL_TRIANGLES, terrainIndexCount, GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+
+        // Switch back to main shader for the water pass
+        shader.Use();
 
         // === 4. WATER (blended over reflection) ===
         glEnable(GL_BLEND);
