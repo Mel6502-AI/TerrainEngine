@@ -30,17 +30,21 @@ void drawSkyboxFaces(const Shader& shader,
 GLuint WIDTH = 800, HEIGHT = 600;
 #define WATER_SPEED_X 0.1f
 #define WATER_SPEED_Y 0.015f
-#define SCALE 5.0f
+#define SCALE 100.0f
 #define SKYBOX_X 60.0f
 #define SKYBOX_Y_POS 30.0f
 #define SKYBOX_Y_NEG -30.0f
 #define SKYBOX_Z 70.0f
+#define FADE_START (12.0f * SCALE)
+#define FADE_END (30.0f * SCALE)
 #define XZ_SCALE      0.2f
 #define Y_SCALE       20.0f
 #define Y_OFFSET     -27.0f
 #define DETAIL_TILING 32.0f
+#define SPAWN_HEIGHT_ABOVE_WATER 20.0f
+#define TERRAIN_Y_OFFSET 5.0f
 
-Camera camera(glm::vec3(0.0f, -0.5f * SCALE * SKYBOX_Y_POS, 0.0f));
+Camera camera(glm::vec3(0.0f, -0.5f * SCALE * SKYBOX_Y_POS + SPAWN_HEIGHT_ABOVE_WATER, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 0.0f, 0.0f);
 bool keys[1024];
 GLfloat lastX = 400, lastY = 300;
 bool firstMouse = true;
@@ -59,6 +63,7 @@ GLuint waterVAO, waterVBO;
 GLuint terrainVAO, terrainVBO, terrainEBO;
 GLuint terrainColorTexID, terrainDetailTexID;
 GLsizei terrainIndexCount;
+GLint locClipPlane = -1;
 
 void drawSkyboxFaces(const Shader& shader,
                      GLuint skybox0Tex, GLuint skybox1Tex,
@@ -209,7 +214,7 @@ int main()
     glBindTexture(GL_TEXTURE_2D, 0);
 
     // Load heightmap
-    std::string heightmapPath = exePath + "data/Terrain/heightmap.bmp";
+    std::string heightmapPath = exePath + "data/heightmap.bmp";
     std::cout << "Loading heightmap: " << heightmapPath << std::endl;
     int hmW, hmH, hmChannels;
     unsigned char* hmImage = stbi_load(heightmapPath.c_str(), &hmW, &hmH, &hmChannels, 1);
@@ -250,6 +255,8 @@ int main()
     terrainIndexCount = terrainIndices.size();
     std::cout << "Terrain: " << terrainVerts.size() / 5 << " vertices, " << terrainIndexCount / 3 << " triangles" << std::endl;
 
+    locClipPlane = glGetUniformLocation(terrainShader.Program, "uClipPlane");
+
     glGenVertexArrays(1, &terrainVAO);
     glGenBuffers(1, &terrainVBO);
     glGenBuffers(1, &terrainEBO);
@@ -285,10 +292,10 @@ int main()
     stbi_image_free(ctImage);
 
     // Load detail texture
-    const char* detailTexPath = (exePath + "data/detail.bmp").c_str();
+    std::string detailTexPath = exePath + "data/detail.bmp";
     std::cout << "Loading detail texture: " << detailTexPath << std::endl;
     int dtW, dtH, dtChannels;
-    unsigned char* dtImage = stbi_load(detailTexPath, &dtW, &dtH, &dtChannels, 3);
+    unsigned char* dtImage = stbi_load(detailTexPath.c_str(), &dtW, &dtH, &dtChannels, 3);
     if (!dtImage) {
         std::cout << "Failed to load detail texture: " << stbi_failure_reason() << std::endl;
         return -1;
@@ -373,12 +380,12 @@ int main()
 
     // Water quad VAO/VBO - separate from skybox cube
     GLfloat waterVertices[] = {
-        -0.5f, -0.5f, -0.5f,  0.0f, 32.0f,  1.0f, 0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f, 32.0f, 32.0f,  1.0f, 0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f, 32.0f,  0.0f,  1.0f, 0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f, 32.0f,  0.0f,  1.0f, 0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 32.0f,  1.0f, 0.0f, 1.0f
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  1.0f, 0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  1.0f, 1.0f,  1.0f, 0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,  1.0f, 0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,  1.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  1.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  1.0f, 0.0f, 1.0f
     };
     glGenVertexArrays(1, &waterVAO);
     glGenBuffers(1, &waterVBO);
@@ -465,6 +472,7 @@ int main()
         terrainShader.Use();
 
         glm::mat4 terrainModel(1.0f);
+        terrainModel = glm::translate(terrainModel, glm::vec3(0.0f, -0.5f * SCALE * SKYBOX_Y_POS - (-27.0f) - TERRAIN_Y_OFFSET, 0.0f));
         glUniformMatrix4fv(glGetUniformLocation(terrainShader.Program, "model"), 1, GL_FALSE, glm::value_ptr(terrainModel));
         glUniformMatrix4fv(glGetUniformLocation(terrainShader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(terrainShader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
@@ -479,7 +487,10 @@ int main()
         glUniform1i(glGetUniformLocation(terrainShader.Program, "uDetailTex"), 1);
 
         glBindVertexArray(terrainVAO);
+        glEnable(GL_CLIP_DISTANCE0);
+        glUniform4f(locClipPlane, 0.0f, 1.0f, 0.0f, 1500.0f);  // clip at y >= -1500 (water surface world y)
         glDrawElements(GL_TRIANGLES, terrainIndexCount, GL_UNSIGNED_INT, 0);
+        glDisable(GL_CLIP_DISTANCE0);
         glBindVertexArray(0);
 
         // Switch back to main shader for the water pass
@@ -502,6 +513,9 @@ int main()
         glUniform1i(glGetUniformLocation(shader.Program, "texRotX"), 0);
         glUniform1i(glGetUniformLocation(shader.Program, "texRotY"), 0);
         glUniform1i(glGetUniformLocation(shader.Program, "texRotZ"), 0);
+        glUniform1f(glGetUniformLocation(shader.Program, "uWaterTiling"), 16.0f * (SCALE / 5.0f));
+        glUniform1f(glGetUniformLocation(shader.Program, "uFadeStart"), FADE_START);
+        glUniform1f(glGetUniformLocation(shader.Program, "uFadeEnd"), FADE_END);
         static float waveShift = 0.0f;
         waveShift += WATER_SPEED_X * dt;
         // if (waveShift > 64.0f) waveShift -= 64.0f;
