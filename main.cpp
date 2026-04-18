@@ -28,10 +28,15 @@ void drawSkyboxFaces(const Shader& shader,
                      GLuint skybox4Tex);
 
 GLuint WIDTH = 800, HEIGHT = 600;
-#define WATER_SPEED_X 0.03f
+#define WATER_SPEED_X 0.1f
 #define WATER_SPEED_Y 0.015f
+#define SCALE 5.0f
+#define SKYBOX_X 60.0f
+#define SKYBOX_Y_POS 30.0f
+#define SKYBOX_Y_NEG -30.0f
+#define SKYBOX_Z 70.0f
 
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera camera(glm::vec3(0.0f, -0.5f * SCALE * SKYBOX_Y_POS, 0.0f));
 bool keys[1024];
 GLfloat lastX = 400, lastY = 300;
 bool firstMouse = true;
@@ -46,6 +51,7 @@ struct Character {
 };
 std::map<GLchar, Character> Characters;
 GLuint textVAO, textVBO;
+GLuint waterVAO, waterVBO;
 
 void drawSkyboxFaces(const Shader& shader,
                      GLuint skybox0Tex, GLuint skybox1Tex,
@@ -261,6 +267,29 @@ int main()
     glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(5 * sizeof(GLfloat)));
     glBindVertexArray(0);
 
+    // Water quad VAO/VBO - separate from skybox cube
+    GLfloat waterVertices[] = {
+        -0.5f, -0.5f, -0.5f,  0.0f, 32.0f,  1.0f, 0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f, 32.0f, 32.0f,  1.0f, 0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f, 32.0f,  0.0f,  1.0f, 0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f, 32.0f,  0.0f,  1.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 32.0f,  1.0f, 0.0f, 1.0f
+    };
+    glGenVertexArrays(1, &waterVAO);
+    glGenBuffers(1, &waterVBO);
+    glBindVertexArray(waterVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, waterVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(waterVertices), waterVertices, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(5 * sizeof(GLfloat)));
+    glBindVertexArray(0);
+
     while (!glfwWindowShouldClose(window))
     {
         static struct timespec lastTime = {0, 0};
@@ -285,20 +314,54 @@ int main()
 
         glm::mat4 model(1);
         glm::mat4 view = camera.GetViewMatrix();
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)WIDTH / (float)HEIGHT, 0.1f, 10000.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)WIDTH / (float)HEIGHT, 0.1f, 1000000.0f);
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
+        // === 1. REFLECTION PASS (flipped skybox drawn below water, depth-tested against scene) ===
+        glDepthMask(GL_FALSE);              // don't write depth
+        glEnable(GL_DEPTH_TEST);             // test depth — reflection occludes behind terrain
+        glDepthFunc(GL_LEQUAL);             // standard depth test
+        glDisable(GL_BLEND);               // reflection itself is opaque
         glBindVertexArray(cubeVAO);
-        // Scale: vec3(X, Z, Y) - second param is Z, third is Y
-        model = glm::scale(model, glm::vec3(60.0f, 50.0f, 80.0f));
+        model = glm::mat4(1);
+        model = glm::scale(model, glm::vec3(SCALE*SKYBOX_X, SCALE*(SKYBOX_Y_NEG), SCALE*SKYBOX_Z));  // Y-flip
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
-
         drawSkyboxFaces(shader, skybox0Texture, skybox1Texture,
                         skybox2Texture, skybox3Texture, skybox4Texture);
 
-        // Bottom face - SkyBox5 (water)
+        // === 2. NORMAL SKYBOX (above-water world) ===
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_TRUE);
+        model = glm::mat4(1);
+        model = glm::scale(model, glm::vec3(SCALE*SKYBOX_X, SCALE*SKYBOX_Y_POS, SCALE*SKYBOX_Z));
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        drawSkyboxFaces(shader, skybox0Texture, skybox1Texture,
+                        skybox2Texture, skybox3Texture, skybox4Texture);
+
+        // === 3. REFLECTION PASS (flipped skybox below water at y=-80 to y=-30) ===
+        glDepthMask(GL_FALSE);              // don't write depth
+        glDisable(GL_DEPTH_TEST);           // don't test depth
+        glDisable(GL_BLEND);               // opaque
+        glBindVertexArray(cubeVAO);
+        model = glm::mat4(1);
+        model = glm::translate(model, glm::vec3(0.0f, SCALE*(SKYBOX_Y_NEG), 0.0f));  // shift so reflection top touches water at y=-100
+        model = glm::scale(model, glm::vec3(SCALE*SKYBOX_X, SCALE*(SKYBOX_Y_NEG), SCALE*SKYBOX_Z));   // Y-flip
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        drawSkyboxFaces(shader, skybox0Texture, skybox1Texture,
+                        skybox2Texture, skybox3Texture, skybox4Texture);
+
+        // === 4. WATER (blended over reflection) ===
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDepthMask(GL_FALSE);              // water is transparent → don't block later transparent objects
+        glBindVertexArray(waterVAO);
+        // Match the skybox scale so water sits at the same Y as the reflection's "seam"
+        model = glm::mat4(1);
+        model = glm::scale(model, glm::vec3(SCALE*SKYBOX_X, SCALE*SKYBOX_Y_POS, SCALE*SKYBOX_Z));
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
+
         glActiveTexture(GL_TEXTURE4);
         glBindTexture(GL_TEXTURE_2D, skybox5Texture);
         glUniform1i(glGetUniformLocation(shader.Program, "texture5"), 4);
@@ -308,9 +371,11 @@ int main()
         glUniform1i(glGetUniformLocation(shader.Program, "texRotZ"), 0);
         static float waveShift = 0.0f;
         waveShift += WATER_SPEED_X * dt;
+        // if (waveShift > 64.0f) waveShift -= 64.0f;
         glUniform1f(glGetUniformLocation(shader.Program, "uWaveShift"), waveShift);
-        glDrawArrays(GL_TRIANGLES, 24, 6);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 
+        glDepthMask(GL_TRUE);                // restore before text pass
         glBindVertexArray(0);
 
         // Draw HUD text - XYZ position (white, top left, smaller font)
@@ -321,7 +386,7 @@ int main()
 
         std::stringstream ss;
         ss.precision(2);
-        ss << std::fixed << "X: " << camera.Position.x << "  Y: " << camera.Position.z << "  Z: " << camera.Position.y;
+        ss << std::fixed << "X: " << camera.Position.x << "  Y: " << camera.Position.y << "  Z: " << camera.Position.z;
         RenderText(textShader, ss.str(), 10.0f, HEIGHT - 30.0f, 0.9f, glm::vec3(1.0f, 1.0f, 1.0f));
 
         glEnable(GL_DEPTH_TEST);
