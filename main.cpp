@@ -464,29 +464,46 @@ int main()
         drawSkyboxFaces(shader, skybox0Texture, skybox1Texture,
                         skybox2Texture, skybox3Texture, skybox4Texture);
 
-        // === TERRAIN PASS ===
+        // === TERRAIN PASS (shared setup for all terrain draws) ===
+        terrainShader.Use();
         glEnable(GL_DEPTH_TEST);
         glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
+        glBindVertexArray(terrainVAO);
 
-        terrainShader.Use();
-
+        // Compute terrain model matrix (used by both reflection and above-water passes)
         glm::mat4 terrainModel(1.0f);
         terrainModel = glm::translate(terrainModel, glm::vec3(0.0f, -0.5f * SCALE * SKYBOX_Y_POS - (-27.0f) - TERRAIN_Y_OFFSET, 0.0f));
-        glUniformMatrix4fv(glGetUniformLocation(terrainShader.Program, "model"), 1, GL_FALSE, glm::value_ptr(terrainModel));
+
+        // Shared uniforms (view/proj/detailTiling/textures — same for all terrain draws)
         glUniformMatrix4fv(glGetUniformLocation(terrainShader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(terrainShader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
         glUniform1f(glGetUniformLocation(terrainShader.Program, "uDetailTiling"), DETAIL_TILING);
-
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, terrainColorTexID);
         glUniform1i(glGetUniformLocation(terrainShader.Program, "uColorTex"), 0);
-
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, terrainDetailTexID);
         glUniform1i(glGetUniformLocation(terrainShader.Program, "uDetailTex"), 1);
 
-        glBindVertexArray(terrainVAO);
+        // === TERRAIN REFLECTION PASS (mirrored terrain below water) ===
+        // Mirror transform: T(0, 2*WATER_LEVEL, 0) * S(1,-1,1).
+        // With WATER_LEVEL=-1500: T(0, -3000, 0) * S(1,-1,1) maps (x,y,z) to (x, -3000-y, z).
+        glm::mat4 mirrorMat(1.0f);
+        mirrorMat = glm::translate(mirrorMat, glm::vec3(0.0f, 2.0f * (-1500.0f), 0.0f));
+        mirrorMat = glm::scale(mirrorMat, glm::vec3(1.0f, -1.0f, 1.0f));
+        glm::mat4 reflectedTerrainModel = mirrorMat * terrainModel;
+        glEnable(GL_CLIP_DISTANCE0);
+        glUniformMatrix4fv(glGetUniformLocation(terrainShader.Program, "model"), 1, GL_FALSE, glm::value_ptr(reflectedTerrainModel));
+        // Keep only y <= -1500 (below water surface): plane (0, -1, 0, -1500)
+        glUniform4f(locClipPlane, 0.0f, -1.0f, 0.0f, -1500.0f);
+        glFrontFace(GL_CW);   // scale(1,-1,1) flips winding
+        glDrawElements(GL_TRIANGLES, terrainIndexCount, GL_UNSIGNED_INT, 0);
+        glFrontFace(GL_CCW);  // restore default
+        glDisable(GL_CLIP_DISTANCE0);
+
+        // === TERRAIN PASS (above water) ===
+        glUniformMatrix4fv(glGetUniformLocation(terrainShader.Program, "model"), 1, GL_FALSE, glm::value_ptr(terrainModel));
         glEnable(GL_CLIP_DISTANCE0);
         glUniform4f(locClipPlane, 0.0f, 1.0f, 0.0f, 1500.0f);  // clip at y >= -1500 (water surface world y)
         glDrawElements(GL_TRIANGLES, terrainIndexCount, GL_UNSIGNED_INT, 0);
