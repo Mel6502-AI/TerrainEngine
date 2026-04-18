@@ -80,14 +80,14 @@ void main()
         color = texture(texture4, adjustedTex);
     } else if (faceType == 5) {
         // Alpha fade: increases water transparency near camera, fully opaque at distance
-        const float nearAlpha = 0.55f;
+        const float nearAlpha = 0.80f;  // was 0.55 — more opaque = less reflection showing through
 
         // Water: sample with scrolling UVs, output with alpha for blending
         vec2 uv = vec2(TexCoords.x * uWaterTiling + uWaveShift, TexCoords.y * uWaterTiling + 0.5 * uWaveShift);
         vec4 waterCol = texture(texture5, uv);
         // Tint toward a sea-blue and let reflection show through
         vec3 seaTint = vec3(0.25, 0.55, 0.75);
-        waterCol.rgb = mix(waterCol.rgb, seaTint, 0.3);
+        waterCol.rgb = mix(waterCol.rgb, seaTint, 0.05);  // was 0.3 — less tint means reflection less obvious
 
         // Ramp alpha from nearAlpha (transparent near camera) to 1.0 (opaque at distance)
         float dist = length(WorldPos - uCameraPos);
