@@ -2,6 +2,7 @@
 
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec2 texCoord;
+layout(location = 2) in vec3 normal;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -11,6 +12,7 @@ uniform vec4 uClipPlane;  // (x, y, z, d) — clip at dot(vec4(worldPos, 1.0), u
 out float vHeight;
 out vec2 vTexCoord;
 out vec2 vDetailCoord;
+out vec3 vNormal;
 out float gl_ClipDistance[1];
 
 uniform float uDetailTiling;
@@ -22,4 +24,5 @@ void main() {
     vHeight = position.y;
     vTexCoord = texCoord;
     vDetailCoord = texCoord * uDetailTiling;
+    vNormal = mat3(model) * normal;   // world-space normal (reflection's -Y scale flips it)
 }

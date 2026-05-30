@@ -178,14 +178,24 @@ int main()
     std::vector<float> terrainVerts;
     std::vector<GLuint> terrainIndices;
 
+    // Sample heightmap world-Y with edge clamping (for normal computation)
+    auto hAt = [&](int i, int j) -> float {
+        i = i < 0 ? 0 : (i >= hmW ? hmW - 1 : i);
+        j = j < 0 ? 0 : (j >= hmH ? hmH - 1 : j);
+        return (hmImage[j * hmW + i] / 255.0f) * Y_SCALE + Y_OFFSET;
+    };
     for (int j = 0; j < hmH; ++j) {
         for (int i = 0; i < hmW; ++i) {
             float x = (i - hmW / 2.0f) * XZ_SCALE;
-            float y = (hmImage[j * hmW + i] / 255.0f) * Y_SCALE + Y_OFFSET;
+            float y = hAt(i, j);
             float z = (j - hmH / 2.0f) * XZ_SCALE;
             float u = i / (hmW - 1.0f);
             float v = j / (hmH - 1.0f);
-            terrainVerts.insert(terrainVerts.end(), {x, y, z, u, v});
+            // Normal from central differences of the height field
+            float dYdx = (hAt(i + 1, j) - hAt(i - 1, j)) / (2.0f * XZ_SCALE);
+            float dYdz = (hAt(i, j + 1) - hAt(i, j - 1)) / (2.0f * XZ_SCALE);
+            glm::vec3 nrm = glm::normalize(glm::vec3(-dYdx, 1.0f, -dYdz));
+            terrainVerts.insert(terrainVerts.end(), {x, y, z, u, v, nrm.x, nrm.y, nrm.z});
         }
     }
     for (int j = 0; j < hmH - 1; ++j) {
@@ -203,7 +213,7 @@ int main()
     stbi_image_free(hmImage);
 
     terrainIndexCount = terrainIndices.size();
-    std::cout << "Terrain: " << terrainVerts.size() / 5 << " vertices, " << terrainIndexCount / 3 << " triangles" << std::endl;
+    std::cout << "Terrain: " << terrainVerts.size() / 8 << " vertices, " << terrainIndexCount / 3 << " triangles" << std::endl;
 
     locClipPlane = glGetUniformLocation(terrainShader.Program, "uClipPlane");
 
@@ -216,9 +226,11 @@ int main()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, terrainEBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, terrainIndices.size() * sizeof(GLuint), terrainIndices.data(), GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
     glBindVertexArray(0);
 
     // Load color texture
@@ -429,6 +441,7 @@ int main()
         glUniformMatrix4fv(glGetUniformLocation(terrainShader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(terrainShader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
         glUniform1f(glGetUniformLocation(terrainShader.Program, "uDetailTiling"), DETAIL_TILING);
+        glUniform3f(glGetUniformLocation(terrainShader.Program, "uLightDir"), 0.5f, 0.8f, 0.3f);  // sun direction
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, terrainColorTexID);
         glUniform1i(glGetUniformLocation(terrainShader.Program, "uColorTex"), 0);

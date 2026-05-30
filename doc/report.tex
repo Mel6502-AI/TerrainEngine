@@ -61,6 +61,14 @@ vec3 combined = clamp(baseColor + detailColor - 0.5, 0.0, 1.0);
 Subtracting $0.5$ keeps the average brightness unchanged and avoids the colour
 clamping artefacts that \texttt{GL\_ADD} or \texttt{GL\_MODULATE} would introduce.
 
+The terrain is also lit by a directional sun. Per-vertex normals are computed once at
+mesh-build time from central differences of the height field,
+$\mathbf{n}=\text{normalize}(-\partial y/\partial x,\,1,\,-\partial y/\partial z)$, and
+uploaded as a third vertex attribute. The fragment shader applies an ambient term plus a
+Lambertian diffuse term, $\text{light}=0.4+0.7\max(\mathbf{N}\!\cdot\!\mathbf{L},0)$, so
+slopes facing the sun brighten and those facing away fall into soft shade while staying
+visible.
+
 \subsection{Skybox}
 Rather than an OpenGL cubemap, the sky is built from five independent 2D textures
 mapped onto the inner faces of a cube. This deliberately follows the design brief: the
@@ -179,11 +187,11 @@ CMake must be installed to build. The application is built with
         define, allowing the binary to run from any directory.
   \item \textbf{Self-contained build}: all third-party dependencies vendored in-repo.
   \item \textbf{4$\times$ MSAA} for anti-aliased geometry edges.
+  \item \textbf{Directional sun lighting} on the terrain from height-field normals.
 \end{itemize}
 
 \subsection*{Possible future improvements}
 \begin{itemize}[leftmargin=1.5em]
-  \item Per-vertex or normal-mapped \textbf{terrain lighting} (currently unlit albedo).
   \item \textbf{GPU-displaced} water with real normals for specular sun glint, instead of
         a scrolling texture.
   \item \textbf{Fresnel-weighted} reflection blending for a more physically convincing
