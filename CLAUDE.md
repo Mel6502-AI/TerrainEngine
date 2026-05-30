@@ -12,9 +12,8 @@ cmake --build build          # builds ./terrainEngine into the repo root
 
 There are no tests, linter, or CI. The only target is `terrainEngine`.
 
-External tools that must be installed (vendored headers are not enough): `cmake` and `freetype`
-(`brew install cmake freetype`). Everything else — GLAD, GLFW (static `.a`), GLM, and the
-FreeType/stb_image headers — is vendored under `external/`.
+The only external tool that must be installed is `cmake` (`brew install cmake`). Everything else
+— GLAD, GLFW (static `.a`), GLM, and the stb_image header — is vendored under `external/`.
 
 ## Architecture
 
@@ -42,13 +41,10 @@ in order:
    those draws.
 5. **Water** quad (`shader`, faceType 5) — alpha-blended over the reflection; texture coords are
    scrolled each frame via the `uWaveShift` uniform for the wave animation.
-6. **HUD text** (`textShader`) — depth test off, orthographic projection, drawn last.
 
-Three shader programs are used: `shader` (main.vert/frag — skybox + water), `terrainShader`
-(terrain.vert/frag), `textShader` (text.vert/frag). Uniforms are looked up by name each frame
-(`glGetUniformLocation`); the C++ uniform names must match the GLSL exactly. The text shaders
-expect a packed `vec4` vertex (`pos.xy, uv`) and a single-channel (`GL_RED`) glyph sampler — see
-`RenderText`.
+Two shader programs are used: `shader` (main.vert/frag — skybox + water) and `terrainShader`
+(terrain.vert/frag). Uniforms are looked up by name each frame (`glGetUniformLocation`); the C++
+uniform names must match the GLSL exactly.
 
 ### Tunables
 Scene scale and placement are compile-time `#define`s at the top of `main.cpp` (`SCALE`,
@@ -63,4 +59,5 @@ startup; changing the heightmap image changes the world.
 - GLFW ships only as static archives here; linking pulls in the Cocoa/IOKit/CoreVideo/OpenGL
   frameworks (configured in `CMakeLists.txt`). The `*.dylib`/`*.a` gitignore rules have an
   exception for the vendored `libglfw3.a`.
-- macOS logs one benign `UNSUPPORTED ... using zero texture` warning at startup; ignore it.
+- The skybox faces are 256×256 BMPs stretched over a large cube, so the sky looks soft/low-res
+  by nature; only higher-resolution `data/SkyBox/*.bmp` images will sharpen it.

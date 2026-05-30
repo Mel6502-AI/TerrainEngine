@@ -2,8 +2,7 @@
 
 A small real-time 3D terrain scene rendered with modern OpenGL (3.3 core) on macOS.
 You spawn above an island and can fly around it: heightmap-based terrain with detail
-multi-texturing, a manually-mapped skybox, and an animated, reflective water plane, with
-a live camera-position HUD.
+multi-texturing, a manually-mapped skybox, and an animated, reflective water plane.
 
 See [`doc/TerrainDoc.md`](doc/TerrainDoc.md) for the original design notes.
 
@@ -15,17 +14,15 @@ See [`doc/TerrainDoc.md`](doc/TerrainDoc.md) for the original design notes.
   different resolutions can be mixed).
 - **Water** — a blended plane that animates its texture coordinates each frame and shows an
   inverted (mirrored) reflection of the skybox and terrain.
-- **HUD** — FreeType-rendered text showing the live camera X/Y/Z position.
 
 ## Requirements
 
 - macOS (Apple Silicon or Intel)
 - A C++14 compiler (Xcode command-line tools)
 - [CMake](https://cmake.org/) ≥ 3.5 — `brew install cmake`
-- [FreeType](https://freetype.org/) — `brew install freetype`
 
-GLAD, GLFW (static), GLM and the FreeType/stb_image **headers** are vendored under
-`external/`, so only CMake and the FreeType library need to be installed.
+GLAD, GLFW (static), GLM and the stb_image **header** are vendored under `external/`, so only
+CMake needs to be installed.
 
 ## Build
 
@@ -63,17 +60,15 @@ the source directory), so the binary can be launched from any working directory.
 TerrainEngine/
 ├── CMakeLists.txt
 ├── src/            main.cpp, camera.h, shader.h
-├── shaders/        main, terrain, and text vertex/fragment shaders (GLSL 330 core)
-├── data/           heightmap, terrain/detail textures, SkyBox/, fonts/Monaco.ttf
-├── external/       vendored deps: glad/ (loader + GLM/FreeType/stb headers), GLFW binary
+├── shaders/        main and terrain vertex/fragment shaders (GLSL 330 core)
+├── data/           heightmap, terrain/detail textures, SkyBox/
+├── external/       vendored deps: glad/ (loader + GLM/stb headers), GLFW binary
 └── doc/            TerrainDoc.md — original design notes
 ```
 
 ## Notes
 
-- `data/fonts/Monaco.ttf` is vendored so the HUD works out of the box. To swap fonts, drop a TTF
-  in `data/fonts/` and update the `FT_New_Face` path in `src/main.cpp`.
 - GLFW is linked as a static archive (`external/.../lib-universal/libglfw3.a`) together with the
   Cocoa / IOKit / CoreVideo / OpenGL frameworks (see `CMakeLists.txt`).
-- On launch macOS may log `UNSUPPORTED ... using zero texture` once — a benign legacy-GL
-  warning that does not affect rendering.
+- The skybox uses 256×256 source images stretched across a large cube, so the sky is inherently
+  soft/low-detail; swap in higher-resolution `data/SkyBox/*.bmp` faces to sharpen it.
