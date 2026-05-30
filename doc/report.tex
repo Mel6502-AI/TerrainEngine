@@ -118,42 +118,45 @@ the current working directory.
 \section{Challenges \& Solutions}
 
 \begin{description}[leftmargin=0pt,style=nextline]
-\item[Machine-specific hard-coded paths]
-The project originally embedded machine-specific absolute paths (rooted under a
-\texttt{computer\_graphics/} home directory) for every shader and texture, and one of
-them pointed at a directory that no longer existed, so asset loading failed at runtime. All paths were rewritten to be relative to the
-CMake-provided \texttt{PROJECT\_ROOT}, and the build configuration was repointed at the
-in-repository \texttt{external/} dependencies.
+\item[Putting the right image on the right cube face]
+This was the hardest part for me. I have five sky images and a cube, and at first almost
+every face was either showing the wrong image or showing the right image sideways or
+upside down. I ended up giving each face a \texttt{faceType} id plus three rotation
+uniforms (\texttt{texRotX/Y/Z}) and rotating the texture coordinates in $90^{\circ}$ steps
+in the fragment shader until each one looked right. For example the left face needed a
+$90^{\circ}$ Y plus $180^{\circ}$ X rotation and the top face needed $180^{\circ}$ on both
+Y and Z. It was mostly trial and error, comparing the seams between neighbouring faces
+until the clouds lined up.
 
-\item[Broken / missing build dependencies]
-The build referenced a GLFW \texttt{.dylib} that was no longer present (only the static
-\texttt{libglfw3.a} remained) and a FreeType library that was not installed. The fix was
-to link the static GLFW archive together with the required macOS frameworks
-(\texttt{Cocoa}, \texttt{IOKit}, \texttt{CoreVideo}, \texttt{OpenGL}), and to install the
-remaining toolchain (CMake, and FreeType while the text overlay still existed).
+\item[Hiding the edges of the box]
+At first the borders of the cube were clearly visible as hard lines, which gave away that
+the sky is just a box. This turned out to be the texture wrapping mode: with the default
+clamp the edge texels bled, but switching every face to \texttt{GL\_CLAMP\_TO\_EDGE} made
+the seams disappear.
 
-\item[Skybox seams and orientation]
-With the default clamp mode the cube edges showed visible seams, and several face images
-were rotated relative to the cube. Switching to \texttt{GL\_CLAMP\_TO\_EDGE} removed the
-seams, and per-face UV-rotation uniforms aligned every image.
+\item[Flipping the box for the reflection]
+For the water I redraw the scene mirrored under the surface. The skybox reflection is the
+same cube scaled by $(1,-1,1)$, and the terrain reflection is the terrain matrix times a
+mirror about the water plane. The annoying bug was that the mirrored terrain disappeared,
+because the negative scale reverses the triangle winding so it was being back-face culled.
+Switching \texttt{glFrontFace} to \texttt{GL\_CW} just around the mirrored draw (and back
+to \texttt{GL\_CCW} after) fixed it. I also had to disable depth writes for the reflection
+and turn on blending so the water and the reflection mix instead of one hiding the other.
 
-\item[Reflection winding]
-Mirroring the terrain with a negative scale inverted the triangle winding, which caused
-the reflected terrain to be culled. Temporarily setting \texttt{glFrontFace(GL\_CW)}
-around the mirrored draw resolved it.
+\item[Cutting the terrain at the water line]
+The reflected terrain should only appear below the water and the real terrain only above
+it, otherwise they poke through each other at the shore. I used \texttt{gl\_ClipDistance[0]}
+with a \texttt{uClipPlane} uniform, flipping the plane direction between the two passes.
 
-\item[HUD text orientation (documented, then removed)]
-An on-screen FreeType HUD displayed the camera position, but the glyphs rendered flipped
-because FreeType stores bitmaps top-row-first while the texture sampling assumed the
-opposite. After several iterations on the vertical flip, the HUD was intentionally
-removed from the final build to keep the scene clean and to drop the FreeType
-dependency entirely. This is a deliberate scope decision, not an unresolved bug.
+\item[Making speed frame-rate independent]
+My first version moved the camera and scrolled the waves by a fixed amount per frame, so
+everything ran faster on a faster machine. Multiplying by \texttt{deltaTime} (and, for the
+camera, ramping the velocity with an exponential factor) made the motion consistent.
 \end{description}
 
-\paragraph{Known limitation.} The skybox source images are only $256\times256$ and are
-stretched across a very large cube, so the sky is inherently soft. This is a property of
-the supplied assets rather than the renderer; higher-resolution faces would sharpen it
-directly.
+\paragraph{Known limitation.} The sky images are only $256\times256$ and are stretched over
+a large cube, so the sky still looks a bit soft up close. Higher-resolution face images
+would fix this without any code change.
 
 \section{Environment Setup}
 
