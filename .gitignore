@@ -25,5 +25,9 @@ build/
 .claude/
 .omc/
 
-# Build binary
-wall
+# Compiled executables (built into the source root by CMake)
+/terrainEngine
+/TerrainSandbox
+
+# Keep the vendored GLFW static archive despite the *.a rule above
+!external/glfw-3.4.bin.MACOS/lib-universal/libglfw3.a

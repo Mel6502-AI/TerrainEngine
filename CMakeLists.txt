@@ -2,16 +2,16 @@ cmake_minimum_required(VERSION 3.5.0)
 project(terrainEngine)
 
 set(CMAKE_CXX_STANDARD 14)
-set(GLAD_H /Users/melvyn/computer_graphics/glad/include)
-set(GLFW_H /Users/melvyn/computer_graphics/glfw-3.4.bin.MACOS/include)
-set(GLM_H /opt/homebrew/include/glm)
-set(STBI_H /Users/melvyn/computer_graphics)
-include_directories(${GLAD_H} ${GLFW_H} ${GLM_H} ${STBI_H})
 
-set(GLFW_LINK /Users/melvyn/computer_graphics/glfw-3.4.bin.MACOS/lib-universal/libglfw.3.dylib)
-link_libraries(${GLFW_LINK})
+# --- Vendored dependencies (in-repo, see external/) ---
+# external/glad/include also bundles GLM, FreeType headers, and stb_image.h
+set(VENDOR_INCLUDE ${PROJECT_SOURCE_DIR}/external/glad/include)
+set(GLFW_DIR       ${PROJECT_SOURCE_DIR}/external/glfw-3.4.bin.MACOS)
+set(GLAD_SRC       ${PROJECT_SOURCE_DIR}/external/glad/src/glad.c)
 
-# FreeType setup for macOS
+include_directories(${VENDOR_INCLUDE} ${GLFW_DIR}/include ${PROJECT_SOURCE_DIR}/src)
+
+# --- FreeType (Homebrew on macOS; headers are vendored but the library is not) ---
 if(APPLE)
     if(EXISTS "/opt/homebrew/opt/freetype")
         set(FREETYPE_INCLUDE_DIR "/opt/homebrew/opt/freetype/include/freetype2")
@@ -26,20 +26,20 @@ if(APPLE)
     include_directories(${FREETYPE_INCLUDE_DIR})
 endif()
 
-set(SOURCE_MAIN main.cpp)
-set(SOURCE_GLAD /Users/melvyn/computer_graphics/glad/src/glad.c)
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR})
-add_executable(terrainEngine ${SOURCE_MAIN} ${SOURCE_GLAD})
+add_executable(terrainEngine src/main.cpp ${GLAD_SRC})
 
+# Resolve assets/shaders relative to the source tree, so the binary runs from any CWD.
+target_compile_definitions(terrainEngine PRIVATE PROJECT_ROOT="${PROJECT_SOURCE_DIR}")
 
 if(APPLE)
-    target_link_libraries(terrainEngine "-framework OpenGL" ${FREETYPE_LIBRARY})
-endif()
-
-# Terrain Sandbox - standalone terrain prototype executable
-set(SOURCE_SANDBOX sandbox/main.cpp)
-add_executable(TerrainSandbox ${SOURCE_SANDBOX} ${SOURCE_GLAD})
-target_include_directories(TerrainSandbox PRIVATE ${CMAKE_SOURCE_DIR} ${STBI_H})
-if(APPLE)
-    target_link_libraries(TerrainSandbox "-framework OpenGL")
+    # GLFW is shipped as a static archive (lib-universal/libglfw3.a); static linking on
+    # macOS requires the Cocoa/IOKit/CoreVideo frameworks GLFW depends on.
+    target_link_libraries(terrainEngine
+        ${GLFW_DIR}/lib-universal/libglfw3.a
+        ${FREETYPE_LIBRARY}
+        "-framework OpenGL"
+        "-framework Cocoa"
+        "-framework IOKit"
+        "-framework CoreVideo")
 endif()
