@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <cmath>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -18,9 +19,13 @@ enum Camera_Movement {
 // Default camera values
 const GLfloat YAW        = -90.0f;
 const GLfloat PITCH      =  0.0f;
-const GLfloat SPEED      =  3.0f;
+const GLfloat SPEED      =  3.0f;   // max (cruise) movement speed
 const GLfloat SENSITIVTY =  0.25f;
 const GLfloat ZOOM       =  45.0f;
+// Smoothing rates (1/seconds): how quickly velocity approaches the target.
+// Higher = snappier. Deceleration is a touch faster so stopping feels crisp.
+const GLfloat ACCELERATION = 6.0f;
+const GLfloat DECELERATION = 8.0f;
 
 class Camera
 {
@@ -31,6 +36,8 @@ public:
     glm::vec3 Up;
     glm::vec3 Right;
     glm::vec3 WorldUp;
+    // Current world-space velocity (smoothly approaches the target each frame)
+    glm::vec3 Velocity = glm::vec3(0.0f);
     // Eular Angles
     GLfloat Yaw;
     GLfloat Pitch;
@@ -64,27 +71,24 @@ public:
         return glm::lookAt(this->Position, this->Position + this->Front, this->Up);
     }
 
-    // Processes input received from any keyboard-like input system.
-    void ProcessKeyboard(Camera_Movement direction, GLfloat deltaTime)
+    // Smoothly moves the camera. wishDir is the (un-normalized) desired direction
+    // built from the currently held keys; pass a zero vector when no key is down.
+    // Velocity ramps toward MovementSpeed when a key is held (gradual acceleration)
+    // and decays back to zero when released (gradual deceleration) instead of
+    // jumping/stopping instantly. Uses an exponential approach so the feel is
+    // identical at any frame rate.
+    void ApplyMovement(glm::vec3 wishDir, GLfloat deltaTime)
     {
-        GLfloat velocity = this->MovementSpeed * deltaTime;
-        if (direction == FORWARD) {
-            // Flatten Front to XZ plane (no Y component) so W/S don't affect Z
-            glm::vec3 flatFront = glm::normalize(glm::vec3(this->Front.x, 0.0f, this->Front.z));
-            this->Position += flatFront * velocity;
-        }
-        if (direction == BACKWARD) {
-            glm::vec3 flatFront = glm::normalize(glm::vec3(this->Front.x, 0.0f, this->Front.z));
-            this->Position -= flatFront * velocity;
-        }
-        if (direction == LEFT)
-            this->Position -= this->Right * velocity;
-        if (direction == RIGHT)
-            this->Position += this->Right * velocity;
-        if (direction == UP)
-            this->Position += this->WorldUp * velocity;
-        if (direction == DOWN)
-            this->Position -= this->WorldUp * velocity;
+        glm::vec3 targetVel(0.0f);
+        bool moving = glm::length(wishDir) > 0.0001f;
+        if (moving)
+            targetVel = glm::normalize(wishDir) * this->MovementSpeed;
+
+        GLfloat rate = moving ? ACCELERATION : DECELERATION;
+        GLfloat t = 1.0f - std::exp(-rate * deltaTime);   // frame-rate-independent lerp
+        this->Velocity += (targetVel - this->Velocity) * t;
+
+        this->Position += this->Velocity * deltaTime;
     }
 
     // Processes input received from a mouse input system.

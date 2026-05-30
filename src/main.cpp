@@ -499,18 +499,21 @@ int main()
 
 void Do_Movement()
 {
-    if (keys[GLFW_KEY_W])
-        camera.ProcessKeyboard(FORWARD, deltaTime);
-    if (keys[GLFW_KEY_S])
-        camera.ProcessKeyboard(BACKWARD, deltaTime);
-    if (keys[GLFW_KEY_A])
-        camera.ProcessKeyboard(LEFT, deltaTime);
-    if (keys[GLFW_KEY_D])
-        camera.ProcessKeyboard(RIGHT, deltaTime);
-    if (keys[GLFW_KEY_LEFT_SHIFT])
-        camera.ProcessKeyboard(DOWN, deltaTime);
-    if (keys[GLFW_KEY_SPACE])
-        camera.ProcessKeyboard(UP, deltaTime);
+    // Build the desired movement direction from the held keys, then let the
+    // camera smoothly accelerate toward it / decelerate when nothing is pressed.
+    glm::vec3 wish(0.0f);
+    glm::vec3 flatFront(camera.Front.x, 0.0f, camera.Front.z);  // ignore pitch for W/S
+    if (glm::length(flatFront) > 0.0f)
+        flatFront = glm::normalize(flatFront);
+
+    if (keys[GLFW_KEY_W])          wish += flatFront;
+    if (keys[GLFW_KEY_S])          wish -= flatFront;
+    if (keys[GLFW_KEY_A])          wish -= camera.Right;
+    if (keys[GLFW_KEY_D])          wish += camera.Right;
+    if (keys[GLFW_KEY_SPACE])      wish += camera.WorldUp;
+    if (keys[GLFW_KEY_LEFT_SHIFT]) wish -= camera.WorldUp;
+
+    camera.ApplyMovement(wish, deltaTime);
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)

@@ -97,7 +97,12 @@ surface, and the real pass keeps only geometry above it.
 
 \subsection{Camera and asset paths}
 Movement uses a standard Euler fly-camera (\texttt{camera.h}) driven by WASD plus
-Space/Shift, mouse-look, and scroll-to-zoom, with frame-time scaling for smooth speed.
+Space/Shift, mouse-look, and scroll-to-zoom. As required by the brief, motion is
+\emph{smooth}: instead of teleporting the position each frame, the camera keeps a
+velocity vector that exponentially approaches the target speed while a key is held
+(gradual acceleration to a cruising speed) and decays back to zero when released
+(gradual deceleration). The exponential approach $v \mathrel{+}= (v_{\text{target}}-v)
+\,(1-e^{-r\,\Delta t})$ makes the feel frame-rate independent.
 All asset and shader paths are resolved from a compile-time \texttt{PROJECT\_ROOT}
 string injected by CMake, so the executable loads its resources correctly regardless of
 the current working directory.
