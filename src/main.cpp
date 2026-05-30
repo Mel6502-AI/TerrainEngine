@@ -579,13 +579,16 @@ void RenderText(Shader &shader, std::string text, GLfloat x, GLfloat y, GLfloat 
         GLfloat w = ch.Size.x * scale;
         GLfloat h = ch.Size.y * scale;
 
+        // FreeType uploads the glyph bitmap top-row-first, so texture v=0 is the
+        // glyph's top. Map the top quad vertex (ypos+h) to v=0 and the bottom to v=1
+        // so the glyph renders upright.
         GLfloat vertices[6][4] = {
-            { xpos,     ypos + h,   0.0, 1.0 },
-            { xpos,     ypos,       0.0, 0.0 },
-            { xpos + w, ypos,       1.0, 0.0 },
-            { xpos,     ypos + h,   0.0, 1.0 },
-            { xpos + w, ypos,       1.0, 0.0 },
-            { xpos + w, ypos + h,   1.0, 1.0 }
+            { xpos,     ypos + h,   0.0, 0.0 },
+            { xpos,     ypos,       0.0, 1.0 },
+            { xpos + w, ypos,       1.0, 1.0 },
+            { xpos,     ypos + h,   0.0, 0.0 },
+            { xpos + w, ypos,       1.0, 1.0 },
+            { xpos + w, ypos + h,   1.0, 0.0 }
         };
 
         glBindTexture(GL_TEXTURE_2D, ch.TextureID);
