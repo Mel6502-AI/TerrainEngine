@@ -6,6 +6,9 @@
 \usepackage{listings}
 \usepackage{booktabs}
 \usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\graphicspath{{images/}}
 \usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue]{hyperref}
 
 \definecolor{codebg}{rgb}{0.96,0.96,0.96}
@@ -115,6 +118,58 @@ All asset and shader paths are resolved from a compile-time \texttt{PROJECT\_ROO
 string injected by CMake, so the executable loads its resources correctly regardless of
 the current working directory.
 
+\section{Results}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.7\linewidth]{wide_scene.png}
+  \caption{Overview of the scene: the island terrain sits on the animated water under the
+  skybox, with the island visible as a reflection in the water.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{sky_sun.png}
+    \caption{The round sun and clouds in the sky.}
+  \end{subfigure}\hfill
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{sky_seamless.png}
+    \caption{Sky with no visible cube edges/seams (\texttt{GL\_CLAMP\_TO\_EDGE}).}
+  \end{subfigure}
+  \caption{Skybox: the sun and clouds are part of the sky images, and the box edges are
+  hidden so the sky reads as continuous.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{water_reflection.png}
+    \caption{Terrain mirrored in the water surface.}
+  \end{subfigure}\hfill
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{water_waves.png}
+    \caption{Close-up of the tiled, scrolling water surface at the shore.}
+  \end{subfigure}
+  \caption{Water: a reflective, animated surface. The reflection is the scene redrawn
+  mirrored under the water line and blended through the surface.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{terrain_detail.png}
+    \caption{Color $+$ detail multi-texturing close up.}
+  \end{subfigure}\hfill
+  \begin{subfigure}{0.48\linewidth}
+    \includegraphics[width=\linewidth]{wide_scene.png}
+    \caption{Terrain relief lit by the directional sun.}
+  \end{subfigure}
+  \caption{Terrain: height-map geometry with the color and detail textures combined, and
+  slopes shaded by the sun direction.}
+\end{figure}
+
+\clearpage
 \section{Challenges \& Solutions}
 
 \begin{description}[leftmargin=0pt,style=nextline]
