@@ -91,7 +91,7 @@ public:
 	}
 
 	// Function: uses the current shader
-	void Use() const
+	void Use()
 	{
 		glUseProgram(this->Program);
 	}

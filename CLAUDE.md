@@ -42,12 +42,9 @@ in order:
 5. **Water** quad (`shader`, faceType 5) — alpha-blended over the reflection; texture coords are
    scrolled each frame via the `uWaveShift` uniform for the wave animation.
 
-Three shader programs are used: `shader` (main.vert/frag — water), `terrainShader`
-(terrain.vert/frag), and `skyboxShader` (skybox.vert/frag — a `samplerCube` sampled by
-direction). Uniforms are looked up by name each frame (`glGetUniformLocation`); the C++ uniform
-names must match the GLSL exactly. The sky is a cubemap loaded from a single horizontal-cross PNG
-(`data/SkyBox/cubemap.png`) via `loadCubemapCross`, which slices the 6 faces with
-`GL_UNPACK_ROW_LENGTH`.
+Two shader programs are used: `shader` (main.vert/frag — skybox + water) and `terrainShader`
+(terrain.vert/frag). Uniforms are looked up by name each frame (`glGetUniformLocation`); the C++
+uniform names must match the GLSL exactly.
 
 ### Tunables
 Scene scale and placement are compile-time `#define`s at the top of `main.cpp` (`SCALE`,

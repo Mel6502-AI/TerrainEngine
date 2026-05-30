@@ -62,17 +62,14 @@ Subtracting $0.5$ keeps the average brightness unchanged and avoids the colour
 clamping artefacts that \texttt{GL\_ADD} or \texttt{GL\_MODULATE} would introduce.
 
 \subsection{Skybox}
-The sky is a single high-resolution \texttt{GL\_TEXTURE\_CUBE\_MAP}. It is loaded from one
-horizontal-cross PNG ($4\times3$ cells); the six faces are sliced straight out of the
-decoded image using \texttt{GL\_UNPACK\_ROW\_LENGTH}, so no external image tooling is
-needed. The cube is rendered by sampling the cubemap with the per-vertex direction
-$\texttt{mat3(model)}\cdot\texttt{aPos}$. A pleasant consequence is that the water
-\emph{reflection} comes for free: the reflection pass already scales the cube by
-$(1,-1,1)$, which flips the sampling direction in $Y$ and produces a mirrored sky with no
-extra code. Wrapping is \texttt{GL\_CLAMP\_TO\_EDGE} on all three axes to avoid edge
-seams. (An earlier version mapped five separate 2D textures onto the cube faces with
-manual per-face UV rotations; the cubemap replaced that, both sharpening the sky and
-removing the orientation bookkeeping.)
+Rather than an OpenGL cubemap, the sky is built from five independent 2D textures
+mapped onto the inner faces of a cube. This deliberately follows the design brief: the
+sixth (bottom) face is reserved for the water, and the water texture has a different
+resolution from the sky faces, which a cubemap cannot mix. Each face is drawn with a
+\texttt{faceType} uniform that selects the correct sampler, plus per-face
+\texttt{texRotX/Y/Z} uniforms that rotate the UVs in $90^{\circ}$ steps so every image
+appears upright and seamless. Visible seams at the cube edges are removed by setting
+the wrap mode to \texttt{GL\_CLAMP\_TO\_EDGE}.
 
 \subsection{Water}
 The bottom plane samples a 128$\times$128 wave texture with \texttt{GL\_REPEAT} and a
@@ -145,10 +142,10 @@ removed from the final build to keep the scene clean and to drop the FreeType
 dependency entirely. This is a deliberate scope decision, not an unresolved bug.
 \end{description}
 
-\paragraph{Note on orientation.} Because cubemap faces follow a fixed convention,
-swapping in a new sky is now a matter of replacing one cross PNG; if a particular set is
-authored with a different face order, only the cross-cell mapping in
-\texttt{loadCubemapCross} needs adjusting.
+\paragraph{Known limitation.} The skybox source images are only $256\times256$ and are
+stretched across a very large cube, so the sky is inherently soft. This is a property of
+the supplied assets rather than the renderer; higher-resolution faces would sharpen it
+directly.
 
 \section{Environment Setup}
 
@@ -182,7 +179,6 @@ CMake must be installed to build. The application is built with
         define, allowing the binary to run from any directory.
   \item \textbf{Self-contained build}: all third-party dependencies vendored in-repo.
   \item \textbf{4$\times$ MSAA} for anti-aliased geometry edges.
-  \item \textbf{High-resolution cubemap sky} sliced in-code from a single cross image.
 \end{itemize}
 
 \subsection*{Possible future improvements}
@@ -204,8 +200,6 @@ CMake must be installed to build. The application is built with
   \item OpenGL Mathematics (GLM) --- \url{https://github.com/g-truc/glm}.
   \item Sean Barrett, \texttt{stb\_image} --- \url{https://github.com/nothings/stb}.
   \item Course design brief, \texttt{doc/TerrainDoc.md} (skybox / water / terrain spec).
-  \item ``Cloudy Skyboxes'' by Screaming Brain Studios, CC0 / public domain ---
-        \url{https://opengameart.org/content/cloudy-skyboxes-0} (skybox cubemap art).
 \end{enumerate}
 
 \end{document}
