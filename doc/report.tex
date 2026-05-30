@@ -198,6 +198,26 @@ CMake must be installed to build. The application is built with
         water surface.
   \item \textbf{Frustum culling / LOD} on the terrain grid for larger maps.
   \item Higher-resolution or procedurally generated sky.
+  \item \textbf{Shadow mapping} so the terrain casts shadows under the sun, instead of
+        diffuse-only shading.
+  \item \textbf{Specular highlights} and a simple Blinn--Phong term on the terrain, and a
+        sun direction tied to the bright spot baked into the skybox so shading and sky agree.
+  \item \textbf{Normal mapping} on the terrain detail texture for fine surface relief that
+        does not need extra geometry.
+  \item \textbf{Height-based texturing} (sand near the water, grass mid-slope, rock/snow on
+        peaks) blended by altitude and slope, instead of one colour map.
+  \item \textbf{Screen-space reflections} or planar-reflection FBO for the water, removing
+        the duplicated geometry passes used today.
+  \item \textbf{Distance fog / atmospheric haze} to blend the terrain edge into the sky and
+        hide the far clip boundary.
+  \item \textbf{HDR + bloom} tone mapping so the sun and its water glint can bloom.
+  \item \textbf{Underwater fog / refraction} when the camera dips below the water line.
+  \item \textbf{Day--night cycle}: animate the sun direction and tint ambient/sky colour
+        over time.
+  \item \textbf{Tessellation or geo-mipmapping} to add terrain detail near the camera while
+        keeping distant tiles cheap.
+  \item \textbf{Restore an optional HUD/minimap} (re-add text or an ImGui debug overlay) for
+        position read-out and live tuning of the scene constants.
 \end{itemize}
 
 \subsection*{References}
