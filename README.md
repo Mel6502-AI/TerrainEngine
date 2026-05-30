@@ -10,8 +10,8 @@ See [`doc/TerrainDoc.md`](doc/TerrainDoc.md) for the original design notes.
 
 - **Terrain** — mesh generated from `data/heightmap.bmp`, colored by `terrain-texture3.bmp`
   and overlaid with a tiled `detail.bmp` for close-up detail.
-- **Skybox** — six BMP faces mapped onto the inside of a cube (no GL cubemap, so faces of
-  different resolutions can be mixed).
+- **Skybox** — a high-resolution `GL_TEXTURE_CUBE_MAP` (sliced in-code from a single
+  horizontal-cross PNG), sampled by direction so reflections mirror for free.
 - **Water** — a blended plane that animates its texture coordinates each frame and shows an
   inverted (mirrored) reflection of the skybox and terrain.
 
@@ -70,5 +70,6 @@ TerrainEngine/
 
 - GLFW is linked as a static archive (`external/.../lib-universal/libglfw3.a`) together with the
   Cocoa / IOKit / CoreVideo / OpenGL frameworks (see `CMakeLists.txt`).
-- The skybox uses 256×256 source images stretched across a large cube, so the sky is inherently
-  soft/low-detail; swap in higher-resolution `data/SkyBox/*.bmp` faces to sharpen it.
+- The skybox is a 512×512-per-face cubemap loaded from `data/SkyBox/cubemap.png` (a 4×3
+  horizontal cross). Swap that one PNG to change the sky.
+- Skybox art: "Cloudy Skyboxes" by Screaming Brain Studios (CC0 / public domain).
