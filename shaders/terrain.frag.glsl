@@ -21,7 +21,7 @@ void main() {
     // Directional (sun) lighting: ambient + Lambertian diffuse.
     vec3 N = normalize(vNormal);
     float diff = max(dot(N, normalize(uLightDir)), 0.0);
-    float light = 0.25 + 0.95 * diff;   // lower ambient floor -> more visible sun shading
+    float light = 0.4 + 0.7 * diff;   // 0.4 ambient floor so shadowed slopes stay visible
 
     color = vec4(combined * light, 1.0);
 }

@@ -32,8 +32,8 @@ GLuint WIDTH = 800, HEIGHT = 600;
 #define SKYBOX_Z 70.0f
 #define FADE_START (12.0f * SCALE)
 #define FADE_END (30.0f * SCALE)
-#define XZ_SCALE      0.35f
-#define Y_SCALE       34.0f
+#define XZ_SCALE      0.2f
+#define Y_SCALE       20.0f
 #define Y_OFFSET     -27.0f
 #define DETAIL_TILING 32.0f
 #define SPAWN_HEIGHT_ABOVE_WATER 20.0f
