@@ -117,7 +117,7 @@ int main()
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, "Cube", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, "Terrain Engine", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create window" << std::endl;

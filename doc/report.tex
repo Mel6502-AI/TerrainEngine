@@ -1,0 +1,199 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue]{hyperref}
+
+\definecolor{codebg}{rgb}{0.96,0.96,0.96}
+\definecolor{codekw}{rgb}{0.13,0.29,0.53}
+\definecolor{codecm}{rgb}{0.40,0.50,0.40}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{codebg},
+  keywordstyle=\color{codekw}\bfseries,
+  commentstyle=\color{codecm}\itshape,
+  breaklines=true,
+  frame=single,
+  framerule=0pt,
+  showstringspaces=false,
+  columns=fullflexible,
+}
+
+\title{\textbf{Terrain Engine} \\ \large A Real-Time OpenGL Terrain, Skybox, and Water Scene}
+\author{Melvyn Qu}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Overview}
+
+Terrain Engine is a real-time 3D scene written in C++ with the OpenGL~3.3 core
+profile. The viewer spawns above an island and flies freely through a world made of
+three cooperating subsystems: a height-map terrain with detail multi-texturing, a
+manually mapped skybox, and an animated, reflective water plane. The application is a
+single flat render loop (no scene graph) so that the order and the GL state of each
+pass are fully explicit.
+
+\section{Implementation Details}
+
+\subsection{Terrain}
+The terrain mesh is generated at start-up from \texttt{heightmap.bmp}. Each grayscale
+pixel $(i,j)$ becomes a vertex
+\[
+x = (i - \tfrac{W}{2})\,s_{xz}, \qquad
+y = \tfrac{h(i,j)}{255}\,s_{y} + y_{0}, \qquad
+z = (j - \tfrac{H}{2})\,s_{xz},
+\]
+and adjacent samples are stitched into two triangles per grid cell using an index
+buffer. The color texture is sampled with the natural grid UVs, while a second
+\emph{detail} texture is tiled (\texttt{uDetailTiling}) to add high-frequency surface
+variation. The two textures are combined in the fragment shader with the
+\emph{signed-add} rule, the modern GLSL equivalent of the fixed-function
+\texttt{GL\_ADD\_SIGNED} mode recommended in the brief:
+\begin{lstlisting}[language=C]
+vec3 combined = clamp(baseColor + detailColor - 0.5, 0.0, 1.0);
+\end{lstlisting}
+Subtracting $0.5$ keeps the average brightness unchanged and avoids the colour
+clamping artefacts that \texttt{GL\_ADD} or \texttt{GL\_MODULATE} would introduce.
+
+\subsection{Skybox}
+Rather than an OpenGL cubemap, the sky is built from five independent 2D textures
+mapped onto the inner faces of a cube. This deliberately follows the design brief: the
+sixth (bottom) face is reserved for the water, and the water texture has a different
+resolution from the sky faces, which a cubemap cannot mix. Each face is drawn with a
+\texttt{faceType} uniform that selects the correct sampler, plus per-face
+\texttt{texRotX/Y/Z} uniforms that rotate the UVs in $90^{\circ}$ steps so every image
+appears upright and seamless. Visible seams at the cube edges are removed by setting
+the wrap mode to \texttt{GL\_CLAMP\_TO\_EDGE}.
+
+\subsection{Water}
+The bottom plane samples a 128$\times$128 wave texture with \texttt{GL\_REPEAT} and a
+tiling factor well above $1.0$ so the low-resolution image is not stretched. Animation
+is achieved by scrolling the UVs every frame by an accumulated \texttt{uWaveShift}
+(advanced by $\text{speed}\times\Delta t$ so the motion is frame-rate independent):
+\begin{lstlisting}[language=C]
+vec2 uv = vec2(TexCoords.x * uWaterTiling + uWaveShift,
+               TexCoords.y * uWaterTiling + 0.5 * uWaveShift);
+\end{lstlisting}
+The surface is alpha-blended over the scene and tinted slightly toward a sea-blue. A
+distance-based \texttt{smoothstep} fade makes the water more transparent near the
+camera (revealing the reflection) and opaque toward the horizon, which hides the far
+edge of the plane.
+
+\subsection{Reflections}
+Two reflections are rendered. The \emph{sky} reflection re-draws the skybox cube scaled
+by $(1,-1,1)$ below the water line with depth writes disabled. The \emph{terrain}
+reflection multiplies the terrain model matrix by a mirror transform about the water
+plane, $T(0,\,2y_{w},\,0)\cdot S(1,-1,1)$. Because the negative scale reverses triangle
+winding, the front-face convention is temporarily switched to \texttt{GL\_CW} for that
+draw and restored afterwards. Each terrain pass is bounded by a user clip plane fed
+through \texttt{gl\_ClipDistance[0]}: the reflection keeps only geometry below the water
+surface, and the real pass keeps only geometry above it.
+
+\subsection{Camera and asset paths}
+Movement uses a standard Euler fly-camera (\texttt{camera.h}) driven by WASD plus
+Space/Shift, mouse-look, and scroll-to-zoom, with frame-time scaling for smooth speed.
+All asset and shader paths are resolved from a compile-time \texttt{PROJECT\_ROOT}
+string injected by CMake, so the executable loads its resources correctly regardless of
+the current working directory.
+
+\section{Challenges \& Solutions}
+
+\begin{description}[leftmargin=0pt,style=nextline]
+\item[Machine-specific hard-coded paths]
+The project originally embedded machine-specific absolute paths (rooted under a
+\texttt{computer\_graphics/} home directory) for every shader and texture, and one of
+them pointed at a directory that no longer existed, so asset loading failed at runtime. All paths were rewritten to be relative to the
+CMake-provided \texttt{PROJECT\_ROOT}, and the build configuration was repointed at the
+in-repository \texttt{external/} dependencies.
+
+\item[Broken / missing build dependencies]
+The build referenced a GLFW \texttt{.dylib} that was no longer present (only the static
+\texttt{libglfw3.a} remained) and a FreeType library that was not installed. The fix was
+to link the static GLFW archive together with the required macOS frameworks
+(\texttt{Cocoa}, \texttt{IOKit}, \texttt{CoreVideo}, \texttt{OpenGL}), and to install the
+remaining toolchain (CMake, and FreeType while the text overlay still existed).
+
+\item[Skybox seams and orientation]
+With the default clamp mode the cube edges showed visible seams, and several face images
+were rotated relative to the cube. Switching to \texttt{GL\_CLAMP\_TO\_EDGE} removed the
+seams, and per-face UV-rotation uniforms aligned every image.
+
+\item[Reflection winding]
+Mirroring the terrain with a negative scale inverted the triangle winding, which caused
+the reflected terrain to be culled. Temporarily setting \texttt{glFrontFace(GL\_CW)}
+around the mirrored draw resolved it.
+
+\item[HUD text orientation (documented, then removed)]
+An on-screen FreeType HUD displayed the camera position, but the glyphs rendered flipped
+because FreeType stores bitmaps top-row-first while the texture sampling assumed the
+opposite. After several iterations on the vertical flip, the HUD was intentionally
+removed from the final build to keep the scene clean and to drop the FreeType
+dependency entirely. This is a deliberate scope decision, not an unresolved bug.
+\end{description}
+
+\paragraph{Known limitation.} The skybox source images are only $256\times256$ and are
+stretched across a very large cube, so the sky is inherently soft. This is a property of
+the supplied assets rather than the renderer; higher-resolution faces would sharpen it
+directly.
+
+\section{Environment Setup}
+
+\begin{tabular}{ll}
+\toprule
+Operating system & macOS (Darwin 25.4, Apple Silicon) \\
+Compiler / standard & Apple Clang, C++14 \\
+Build system & CMake ($\geq 3.5$) \\
+Windowing / input & GLFW 3.4 (static \texttt{libglfw3.a}) \\
+GL loader & GLAD (OpenGL 3.3 core) \\
+Math library & GLM \\
+Image loading & stb\_image \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\noindent GLAD, GLFW, GLM, and stb\_image are vendored under \texttt{external/}; only
+CMake must be installed to build. The application is built with
+\texttt{cmake -B build \&\& cmake --build build} and runs as \texttt{./terrainEngine}.
+
+\section{Bonus \& References}
+
+\subsection*{Features beyond the basic requirements}
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Dual reflection} of both the sky and the terrain in the water, each
+        clipped to the correct half-space with \texttt{gl\_ClipDistance}.
+  \item \textbf{Distance-based water transparency} using a \texttt{smoothstep} fade, so
+        the water reveals the reflection up close and hides the plane edge at range.
+  \item \textbf{Frame-rate-independent} wave animation via $\Delta t$ accumulation.
+  \item \textbf{Portable asset resolution} through a compile-time \texttt{PROJECT\_ROOT}
+        define, allowing the binary to run from any directory.
+  \item \textbf{Self-contained build}: all third-party dependencies vendored in-repo.
+\end{itemize}
+
+\subsection*{Possible future improvements}
+\begin{itemize}[leftmargin=1.5em]
+  \item Per-vertex or normal-mapped \textbf{terrain lighting} (currently unlit albedo).
+  \item \textbf{GPU-displaced} water with real normals for specular sun glint, instead of
+        a scrolling texture.
+  \item \textbf{Fresnel-weighted} reflection blending for a more physically convincing
+        water surface.
+  \item \textbf{Frustum culling / LOD} on the terrain grid for larger maps.
+  \item Higher-resolution or procedurally generated sky.
+\end{itemize}
+
+\subsection*{References}
+\begin{enumerate}[leftmargin=1.5em]
+  \item Joey de Vries, \emph{LearnOpenGL} --- \url{https://learnopengl.com/}
+        (camera, shaders, text-rendering, skybox tutorials).
+  \item GLFW 3.4 documentation --- \url{https://www.glfw.org/docs/latest/}.
+  \item OpenGL Mathematics (GLM) --- \url{https://github.com/g-truc/glm}.
+  \item Sean Barrett, \texttt{stb\_image} --- \url{https://github.com/nothings/stb}.
+  \item Course design brief, \texttt{doc/TerrainDoc.md} (skybox / water / terrain spec).
+\end{enumerate}
+
+\end{document}
